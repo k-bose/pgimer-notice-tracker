@@ -1,0 +1,6 @@
+{
+  "name": "PGIMER Notice Sentinel",
+  "description": "Automated notice monitor and Resend email alerting console for PGIMER Vacancies and Global Notices portals with two-dimensional IST scheduling.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

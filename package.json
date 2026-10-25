@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch server.ts",
     "start": "node --import tsx server.ts",
+    "poll": "node --import tsx server.ts --once",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

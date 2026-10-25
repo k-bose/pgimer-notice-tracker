@@ -6,4 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
-data/
+data/*
+!data/sentinel-state.json
+public/sentinel-state.json

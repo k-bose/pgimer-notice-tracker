@@ -158,16 +158,56 @@ npm start
 
 ## State Persistence
 
-All discovered notices, run logs, and configuration overrides are saved locally in:
+All discovered notices, run logs, and configuration overrides are saved in:
 
 ```
 data/sentinel-state.json
 ```
 
-This directory and file are created automatically on the first run and persist across server restarts.
+This file preserves notice deduplication history across runs and server restarts.
+
+---
+
+## 100% Free GitHub Deployment (Actions + Pages)
+
+You can run PGIMER Notice Sentinel completely for free without keeping your computer on. Scheduled scraping runs autonomously via **GitHub Actions** and the web console is hosted via **GitHub Pages**.
+
+### 1. Push to Main Branch
+
+```bash
+git push origin main
+```
+
+### 2. Configure GitHub Repository Secrets
+
+Go to your repository on GitHub:
+1. Navigate to **Settings** > **Secrets and variables** > **Actions**.
+2. Click **New repository secret** and add:
+   - `RESEND_API_KEY`: Your Resend API key (e.g. `re_123456...`).
+   - `ALERT_RECIPIENT_EMAIL`: *(Optional)* Email address to receive alerts (e.g. `your-email@gmail.com`).
+   - `RESEND_FROM_EMAIL`: *(Optional)* Verified sender (defaults to `PGIMER Sentinel <onboarding@resend.dev>`).
+
+### 3. Grant Workflow Read & Write Permissions
+
+To allow GitHub Actions to commit newly detected notices back to `data/sentinel-state.json`:
+1. Navigate to **Settings** > **Actions** > **General**.
+2. Scroll to **Workflow permissions**.
+3. Select **"Read and write permissions"** and click **Save**.
+
+### 4. Enable GitHub Pages
+
+1. Navigate to **Settings** > **Pages**.
+2. Under **Build and deployment** > **Source**, select **"GitHub Actions"**.
+
+### 5. Run & Monitor
+
+- **Scheduled Polling**: Runs automatically every hour during Indian Standard Time working hours (`08:00` to `18:00` IST).
+- **Manual Trigger**: Go to the **Actions** tab > select **PGIMER Sentinel Notice Poller & Dashboard** > click **Run workflow**.
+- **Live Web Console**: Once deployed, visit `https://<username>.github.io/pgimer-notice-tracker/` to view indexed notices, logs, and attachments.
 
 ---
 
 ## License
 
 MIT © [K Bose](https://github.com/k-bose)
+

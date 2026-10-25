@@ -1922,9 +1922,14 @@ export async function executePollCycle(
         false
       );
 
+      const effectiveRecipient =
+        process.env.ALERT_RECIPIENT_EMAIL?.trim() || state.config.recipientEmail;
+      const effectiveSender =
+        process.env.RESEND_FROM_EMAIL?.trim() || state.config.senderEmail;
+
       const emailResult = await sendResendEmail({
-        recipientEmail: state.config.recipientEmail,
-        senderEmail: state.config.senderEmail,
+        recipientEmail: effectiveRecipient,
+        senderEmail: effectiveSender,
         subject,
         html: htmlBody,
       });
@@ -1978,10 +1983,51 @@ export async function executePollCycle(
 // ============================================================================
 
 async function startServer() {
-  const app = express();
-  app.use(express.json({ limit: '2mb' }));
+  const isCli =
+    process.argv.includes('--once') || process.env.TRACKER_CLI === 'true';
 
   const state = loadState();
+
+  if (isCli) {
+    const istNow = getIstParts();
+    console.log('====================================================');
+    console.log(`[PGIMER Sentinel CLI] Starting poll cycle at ${istNow.fullFormatted}`);
+    console.log('====================================================');
+
+    // Keep state.config redacted for public git commits
+    state.config.recipientEmail = 'Protected in GitHub Secrets';
+    state.config.senderEmail = 'PGIMER Sentinel';
+
+    const suppressEmails =
+      process.argv.includes('--suppress-emails') ||
+      process.argv.includes('--dry-run');
+
+    const runLog = await executePollCycle(state, 'scheduled', {
+      suppressEmails,
+    });
+
+    console.log('====================================================');
+    console.log('[PGIMER Sentinel CLI] Cycle Execution Completed:');
+    console.log(`- Total Notices Parsed: ${runLog.totalNoticesParsed}`);
+    console.log(`- New Notices Discovered: ${runLog.newNoticesCount}`);
+    if (runLog.newNoticeIds.length > 0) {
+      console.log(`- New Notice IDs: ${runLog.newNoticeIds.join(', ')}`);
+    }
+    console.log(
+      `- Email Dispatch: ${
+        runLog.emailSent
+          ? `SENT (Resend ID: ${runLog.resendEmailId})`
+          : runLog.emailError
+          ? `ERROR (${runLog.emailError})`
+          : 'NO EMAIL (No new notices or suppressed)'
+      }`
+    );
+    console.log('====================================================');
+    process.exit(0);
+  }
+
+  const app = express();
+  app.use(express.json({ limit: '2mb' }));
 
   // Trigger a non-blocking live baseline sync on boot to pick up any newer notices on PGIMER
   setTimeout(() => {

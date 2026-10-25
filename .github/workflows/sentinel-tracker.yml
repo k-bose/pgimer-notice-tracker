@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # Allows manual trigger from GitHub Actions UI anytime
   push:
     branches:
-      - github-actions-deployment
+      - main
     paths:
       - 'src/**'
       - 'server.ts'
@@ -32,7 +32,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: github-actions-deployment
+          ref: main
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -60,7 +60,7 @@ jobs:
           if ! git diff --staged --quiet; then
             echo "New notices detected: committing updated state..."
             git commit -m "chore(sentinel): sync notice records [skip ci]"
-            git push origin github-actions-deployment
+            git push origin main
           else
             echo "No notice state changes to commit."
           fi

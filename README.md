@@ -172,10 +172,10 @@ This file preserves notice deduplication history across runs and server restarts
 
 You can run PGIMER Notice Sentinel completely for free without keeping your computer on. Scheduled scraping runs autonomously via **GitHub Actions** and the web console is hosted via **GitHub Pages**.
 
-### 1. Push the Deployment Branch
+### 1. Push to Main Branch
 
 ```bash
-git push -u origin github-actions-deployment
+git push origin main
 ```
 
 ### 2. Configure GitHub Repository Secrets

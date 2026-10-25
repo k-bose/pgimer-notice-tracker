@@ -828,8 +828,8 @@
     "windowStartIst": "08:00",
     "windowEndIst": "18:00",
     "enabled": true,
-    "recipientEmail": "0xkbose@pm.me",
-    "senderEmail": "PGIMER Sentinel <notifications-pgimer-sentinel@scientibit.com>"
+    "recipientEmail": "Protected in GitHub Secrets",
+    "senderEmail": "PGIMER Sentinel"
   },
   "logs": [
     {

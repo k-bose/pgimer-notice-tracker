@@ -52,13 +52,10 @@ function formatStaticSentinelData(raw: any): SentinelStateResponse {
 
   return {
     notices: raw.notices || [],
-    config: raw.config || {
-      intervalMinutes: 60,
-      windowStartIst: '08:00',
-      windowEndIst: '18:00',
-      enabled: true,
-      recipientEmail: '0xkbose@gmail.com',
-      senderEmail: 'PGIMER Sentinel <onboarding@resend.dev>',
+    config: {
+      ...(raw.config || {}),
+      recipientEmail: 'Protected in GitHub Secrets',
+      senderEmail: 'PGIMER Sentinel',
       resendConfigured: true,
     },
     logs: raw.logs || [],
@@ -480,7 +477,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Zone 2: 4 concise single-line navigation links */}
+        {/* Zone 2: Navigation links */}
         <nav className="flex items-center gap-6 text-sm font-medium text-slate-600 overflow-x-auto">
           <button
             type="button"
@@ -493,31 +490,35 @@ export default function App() {
           >
             Notices Feed
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveSection('inspector')}
-            className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
-              activeSection === 'inspector'
-                ? 'border-blue-600 text-slate-900 font-semibold'
-                : 'border-transparent hover:text-slate-900'
-            }`}
-          >
-            Extraction Inspector
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDraftConfig(config);
-              setActiveSection('schedule');
-            }}
-            className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
-              activeSection === 'schedule'
-                ? 'border-blue-600 text-slate-900 font-semibold'
-                : 'border-transparent hover:text-slate-900'
-            }`}
-          >
-            Schedule &amp; Alerts
-          </button>
+          {!isStaticMode && (
+            <>
+              <button
+                type="button"
+                onClick={() => setActiveSection('inspector')}
+                className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+                  activeSection === 'inspector'
+                    ? 'border-blue-600 text-slate-900 font-semibold'
+                    : 'border-transparent hover:text-slate-900'
+                }`}
+              >
+                Extraction Inspector
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftConfig(config);
+                  setActiveSection('schedule');
+                }}
+                className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+                  activeSection === 'schedule'
+                    ? 'border-blue-600 text-slate-900 font-semibold'
+                    : 'border-transparent hover:text-slate-900'
+                }`}
+              >
+                Schedule &amp; Alerts
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={() => setActiveSection('logs')}
@@ -531,19 +532,26 @@ export default function App() {
           </button>
         </nav>
 
-        {/* Zone 3: 1 primary action */}
+        {/* Zone 3: Action or Status */}
         <div className="flex items-center shrink-0">
-          <button
-            type="button"
-            onClick={() => handleRunPoll(false)}
-            disabled={isPolling}
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${isPolling ? 'animate-spin' : ''}`}
-            />
-            {isPolling ? 'Polling Portals...' : 'Run Poll Now'}
-          </button>
+          {isStaticMode ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-md border border-slate-200">
+              <Clock className="w-3.5 h-3.5 text-blue-600" />
+              <span>Hourly IST Poller</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleRunPoll(false)}
+              disabled={isPolling}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${isPolling ? 'animate-spin' : ''}`}
+              />
+              {isPolling ? 'Polling Portals...' : 'Run Poll Now'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -593,19 +601,27 @@ export default function App() {
           </div>
 
           <div className="pt-2 sm:pt-0 sm:pl-4">
-            <div className="text-slate-500">Resend Email Alert Target</div>
+            <div className="text-slate-500">Resend Alert Delivery</div>
             <div className="mt-0.5 font-mono tabular-nums font-semibold text-slate-900 truncate">
-              {config.recipientEmail}{' '}
-              <span className="text-slate-400">·</span>{' '}
-              <span
-                className={
-                  config.resendConfigured
-                    ? 'text-emerald-700'
-                    : 'text-amber-700'
-                }
-              >
-                {config.resendConfigured ? 'API Key Ready' : 'Set RESEND_API_KEY'}
-              </span>
+              {isStaticMode ? (
+                <span className="text-emerald-700 font-medium">
+                  Protected in GitHub Secrets · Active
+                </span>
+              ) : (
+                <>
+                  {config.recipientEmail}{' '}
+                  <span className="text-slate-400">·</span>{' '}
+                  <span
+                    className={
+                      config.resendConfigured
+                        ? 'text-emerald-700'
+                        : 'text-amber-700'
+                    }
+                  >
+                    {config.resendConfigured ? 'API Key Ready' : 'Set RESEND_API_KEY'}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -989,28 +1005,30 @@ export default function App() {
                     </div>
 
                     {/* Direct Resend Email Action for this Single Notice */}
-                    <div className="pt-2 flex items-center justify-between gap-3">
-                      <div className="text-[11px] text-slate-500 font-mono tabular-nums">
-                        {selectedNotice.emailedAt
-                          ? `Last emailed: ${new Date(
-                              selectedNotice.emailedAt
-                            ).toLocaleTimeString()}`
-                          : 'Not yet emailed individually'}
+                    {!isStaticMode && (
+                      <div className="pt-2 flex items-center justify-between gap-3">
+                        <div className="text-[11px] text-slate-500 font-mono tabular-nums">
+                          {selectedNotice.emailedAt
+                            ? `Last emailed: ${new Date(
+                                selectedNotice.emailedAt
+                              ).toLocaleTimeString()}`
+                            : 'Not yet emailed individually'}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendSingleNoticeEmail(selectedNotice)
+                          }
+                          disabled={emailingNoticeId === selectedNotice.id}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 rounded hover:bg-slate-800 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          {emailingNoticeId === selectedNotice.id
+                            ? 'Sending via Resend...'
+                            : 'Send Alert Email'}
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleSendSingleNoticeEmail(selectedNotice)
-                        }
-                        disabled={emailingNoticeId === selectedNotice.id}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 rounded hover:bg-slate-800 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-                      >
-                        <Send className="w-3.5 h-3.5" />
-                        {emailingNoticeId === selectedNotice.id
-                          ? 'Sending via Resend...'
-                          : 'Send Alert Email'}
-                      </button>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <div className="py-12 text-center text-xs text-slate-500">

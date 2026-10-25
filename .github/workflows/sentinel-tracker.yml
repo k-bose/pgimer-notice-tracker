@@ -68,7 +68,15 @@ jobs:
       - name: Prepare static bundle for GitHub Pages
         run: |
           mkdir -p public
-          cp data/sentinel-state.json public/sentinel-state.json
+          node -e '
+            const fs = require("fs");
+            const data = JSON.parse(fs.readFileSync("data/sentinel-state.json", "utf8"));
+            if (data.config) {
+              data.config.recipientEmail = "Protected in GitHub Secrets";
+              data.config.resendConfigured = true;
+            }
+            fs.writeFileSync("public/sentinel-state.json", JSON.stringify(data, null, 2));
+          '
           npm run build
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/

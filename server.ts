@@ -1922,9 +1922,14 @@ export async function executePollCycle(
         false
       );
 
+      const effectiveRecipient =
+        process.env.ALERT_RECIPIENT_EMAIL?.trim() || state.config.recipientEmail;
+      const effectiveSender =
+        process.env.RESEND_FROM_EMAIL?.trim() || state.config.senderEmail;
+
       const emailResult = await sendResendEmail({
-        recipientEmail: state.config.recipientEmail,
-        senderEmail: state.config.senderEmail,
+        recipientEmail: effectiveRecipient,
+        senderEmail: effectiveSender,
         subject,
         html: htmlBody,
       });
@@ -1989,12 +1994,9 @@ async function startServer() {
     console.log(`[PGIMER Sentinel CLI] Starting poll cycle at ${istNow.fullFormatted}`);
     console.log('====================================================');
 
-    if (process.env.ALERT_RECIPIENT_EMAIL) {
-      state.config.recipientEmail = process.env.ALERT_RECIPIENT_EMAIL.trim();
-    }
-    if (process.env.RESEND_FROM_EMAIL) {
-      state.config.senderEmail = process.env.RESEND_FROM_EMAIL.trim();
-    }
+    // Keep state.config redacted for public git commits
+    state.config.recipientEmail = 'Protected in GitHub Secrets';
+    state.config.senderEmail = 'PGIMER Sentinel';
 
     const suppressEmails =
       process.argv.includes('--suppress-emails') ||

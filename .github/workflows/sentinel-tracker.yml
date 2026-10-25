@@ -48,8 +48,8 @@ jobs:
         run: npm run poll
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          ALERT_RECIPIENT_EMAIL: ${{ vars.ALERT_RECIPIENT_EMAIL || secrets.ALERT_RECIPIENT_EMAIL }}
-          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL || secrets.RESEND_FROM_EMAIL }}
+          ALERT_RECIPIENT_EMAIL: ${{ secrets.ALERT_RECIPIENT_EMAIL }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
           NODE_ENV: production
 
       - name: Commit and push updated notice state

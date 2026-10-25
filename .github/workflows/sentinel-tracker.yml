@@ -1,0 +1,89 @@
+name: PGIMER Sentinel Notice Poller & Dashboard
+
+on:
+  schedule:
+    # Runs hourly at :30 between 02:30 UTC and 12:30 UTC (08:00 - 18:00 Indian Standard Time)
+    - cron: '30 2-12 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions UI anytime
+  push:
+    branches:
+      - github-actions-deployment
+    paths:
+      - 'src/**'
+      - 'server.ts'
+      - 'index.html'
+      - 'package.json'
+      - 'vite.config.ts'
+      - '.github/workflows/**'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pgimer-sentinel'
+  cancel-in-progress: false
+
+jobs:
+  poll-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: github-actions-deployment
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Execute Notice Sentinel Poll Cycle
+        run: npm run poll
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_RECIPIENT_EMAIL: ${{ secrets.ALERT_RECIPIENT_EMAIL }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+          NODE_ENV: production
+
+      - name: Commit and push updated notice state
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/sentinel-state.json
+          if ! git diff --staged --quiet; then
+            echo "New notices detected: committing updated state..."
+            git commit -m "chore(sentinel): sync notice records [skip ci]"
+            git push origin github-actions-deployment
+          else
+            echo "No notice state changes to commit."
+          fi
+
+      - name: Prepare static bundle for GitHub Pages
+        run: |
+          mkdir -p public
+          cp data/sentinel-state.json public/sentinel-state.json
+          npm run build
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+        continue-on-error: true
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true

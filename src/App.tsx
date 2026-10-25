@@ -23,8 +23,52 @@ import type {
 
 type ActiveSection = 'feed' | 'inspector' | 'schedule' | 'logs';
 
+function formatStaticSentinelData(raw: any): SentinelStateResponse {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(new Date());
+  const map: Record<string, string> = {};
+  for (const p of parts) map[p.type] = p.value;
+  const timeHHMM = `${map.hour || '00'}:${map.minute || '00'}`;
+  const dateFormatted = `${map.day || '00'}.${map.month || '00'}.${map.year || '2026'}`;
+
+  const scheduler: SchedulerLiveStatus = raw.scheduler || {
+    currentIstTime: `${timeHHMM} IST`,
+    currentIstDate: dateFormatted,
+    isWithinWindow: true,
+    lastPollAt: raw.lastPollAt || null,
+    nextEligiblePollAtIst: 'Autonomous via GitHub Actions',
+    minutesUntilNextPoll: 0,
+    isPollingNow: false,
+  };
+
+  return {
+    notices: raw.notices || [],
+    config: raw.config || {
+      intervalMinutes: 60,
+      windowStartIst: '08:00',
+      windowEndIst: '18:00',
+      enabled: true,
+      recipientEmail: '0xkbose@gmail.com',
+      senderEmail: 'PGIMER Sentinel <onboarding@resend.dev>',
+      resendConfigured: true,
+    },
+    logs: raw.logs || [],
+    scheduler,
+  };
+}
+
 export default function App() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('feed');
+  const [isStaticMode, setIsStaticMode] = useState<boolean>(false);
   const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [config, setConfig] = useState<PollerConfig>({
     intervalMinutes: 60,
@@ -70,15 +114,34 @@ export default function App() {
   const fetchSentinelState = useCallback(async (quiet = false) => {
     if (!quiet) setLoadingInitial(true);
     try {
-      const res = await fetch('/api/state');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as SentinelStateResponse;
-      setNotices(data.notices);
+      let data: SentinelStateResponse;
+      try {
+        const res = await fetch('/api/state');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = (await res.json()) as SentinelStateResponse;
+        setIsStaticMode(false);
+      } catch (apiErr) {
+        // Fallback for static GitHub Pages hosting
+        const baseUrl = import.meta.env.BASE_URL || './';
+        const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+        const stateUrl = `${cleanBase}sentinel-state.json`;
+
+        let staticRes = await fetch(stateUrl);
+        if (!staticRes.ok) {
+          staticRes = await fetch('./sentinel-state.json');
+        }
+        if (!staticRes.ok) throw apiErr;
+        const raw = await staticRes.json();
+        data = formatStaticSentinelData(raw);
+        setIsStaticMode(true);
+      }
+
+      setNotices(data.notices || []);
       setConfig(data.config);
       setDraftConfig((prev) => prev || data.config);
-      setLogs(data.logs);
+      setLogs(data.logs || []);
       setScheduler(data.scheduler);
-      if (data.notices.length > 0) {
+      if (data.notices && data.notices.length > 0) {
         setSelectedNoticeId((prev) => prev || data.notices[0].id);
       }
     } catch (err: any) {
@@ -122,6 +185,15 @@ export default function App() {
     simulateUpload = false,
     simulatePortal?: NoticeSourceId
   ) => {
+    if (isStaticMode) {
+      setBanner({
+        tone: 'info',
+        message: 'Static Console (GitHub Pages)',
+        detail:
+          'Automated notice polling runs hourly via GitHub Actions. To trigger an immediate live poll, open your repository Actions tab and click "Run workflow".',
+      });
+      return;
+    }
     if (isPolling) return;
     setIsPolling(true);
     setBanner({
@@ -178,6 +250,15 @@ export default function App() {
   };
 
   const handleSendSingleNoticeEmail = async (notice: NoticeItem) => {
+    if (isStaticMode) {
+      setBanner({
+        tone: 'info',
+        message: 'Static Console (GitHub Pages)',
+        detail:
+          'Email alerts are dispatched automatically via the Resend API when GitHub Actions discovers new notices during scheduled runs.',
+      });
+      return;
+    }
     if (emailingNoticeId) return;
     setEmailingNoticeId(notice.id);
     try {
@@ -214,6 +295,15 @@ export default function App() {
 
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isStaticMode) {
+      setBanner({
+        tone: 'info',
+        message: 'Static Console (GitHub Pages)',
+        detail:
+          'In GitHub deployment mode, settings are configured via GitHub Repository Secrets (ALERT_RECIPIENT_EMAIL, RESEND_API_KEY) and workflow schedules.',
+      });
+      return;
+    }
     if (!draftConfig || savingConfig) return;
     setSavingConfig(true);
     try {
@@ -244,6 +334,15 @@ export default function App() {
   };
 
   const handleSendTestEmail = async () => {
+    if (isStaticMode) {
+      setBanner({
+        tone: 'info',
+        message: 'Static Console (GitHub Pages)',
+        detail:
+          'To test email alerts in GitHub Actions, configure RESEND_API_KEY in Repository Secrets and trigger the workflow manually from the Actions tab.',
+      });
+      return;
+    }
     if (sendingTestEmail) return;
     setSendingTestEmail(true);
     const targetConfig = draftConfig || config;
@@ -286,6 +385,15 @@ export default function App() {
       pageType: ParserInspectionResult['pageType'],
       htmlToParse: string
     ) => {
+      if (isStaticMode) {
+        setBanner({
+          tone: 'info',
+          message: 'Static Console (GitHub Pages)',
+          detail:
+            'Interactive HTML parser inspection runs on the local server. In GitHub Pages mode, notices are extracted by the scheduled GitHub Actions runner.',
+        });
+        return;
+      }
       setRunningInspector(true);
       try {
         const res = await fetch('/api/parser/inspect', {
@@ -352,17 +460,25 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       {/* Strict 3-Zone Top Bar Contract */}
       <header className="flex items-center justify-between gap-8 px-6 py-3.5 bg-white border-b border-slate-200 sticky top-0 z-20">
-        {/* Zone 1: Single text element wordmark */}
-        <a
-          href="#feed"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveSection('feed');
-          }}
-          className="font-display text-base font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
-        >
-          PGIMER Sentinel
-        </a>
+        {/* Zone 1: Wordmark & Deployment Mode Badge */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <a
+            href="#feed"
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveSection('feed');
+            }}
+            className="font-display text-base font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0"
+          >
+            PGIMER Sentinel
+          </a>
+          {isStaticMode && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              GitHub Actions
+            </span>
+          )}
+        </div>
 
         {/* Zone 2: 4 concise single-line navigation links */}
         <nav className="flex items-center gap-6 text-sm font-medium text-slate-600 overflow-x-auto">

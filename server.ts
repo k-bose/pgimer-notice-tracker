@@ -1978,10 +1978,54 @@ export async function executePollCycle(
 // ============================================================================
 
 async function startServer() {
-  const app = express();
-  app.use(express.json({ limit: '2mb' }));
+  const isCli =
+    process.argv.includes('--once') || process.env.TRACKER_CLI === 'true';
 
   const state = loadState();
+
+  if (isCli) {
+    const istNow = getIstParts();
+    console.log('====================================================');
+    console.log(`[PGIMER Sentinel CLI] Starting poll cycle at ${istNow.fullFormatted}`);
+    console.log('====================================================');
+
+    if (process.env.ALERT_RECIPIENT_EMAIL) {
+      state.config.recipientEmail = process.env.ALERT_RECIPIENT_EMAIL.trim();
+    }
+    if (process.env.RESEND_FROM_EMAIL) {
+      state.config.senderEmail = process.env.RESEND_FROM_EMAIL.trim();
+    }
+
+    const suppressEmails =
+      process.argv.includes('--suppress-emails') ||
+      process.argv.includes('--dry-run');
+
+    const runLog = await executePollCycle(state, 'scheduled', {
+      suppressEmails,
+    });
+
+    console.log('====================================================');
+    console.log('[PGIMER Sentinel CLI] Cycle Execution Completed:');
+    console.log(`- Total Notices Parsed: ${runLog.totalNoticesParsed}`);
+    console.log(`- New Notices Discovered: ${runLog.newNoticesCount}`);
+    if (runLog.newNoticeIds.length > 0) {
+      console.log(`- New Notice IDs: ${runLog.newNoticeIds.join(', ')}`);
+    }
+    console.log(
+      `- Email Dispatch: ${
+        runLog.emailSent
+          ? `SENT (Resend ID: ${runLog.resendEmailId})`
+          : runLog.emailError
+          ? `ERROR (${runLog.emailError})`
+          : 'NO EMAIL (No new notices or suppressed)'
+      }`
+    );
+    console.log('====================================================');
+    process.exit(0);
+  }
+
+  const app = express();
+  app.use(express.json({ limit: '2mb' }));
 
   // Trigger a non-blocking live baseline sync on boot to pick up any newer notices on PGIMER
   setTimeout(() => {

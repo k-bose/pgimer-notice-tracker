@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import express from 'express';
+import { Agent as UndiciAgent } from 'undici';
 import { createServer as createViteServer } from 'vite';
 import type {
   NoticeAttachment,
@@ -42,9 +43,9 @@ export const PGIMER_ENDPOINTS = {
       'https://pgimer.edu.in/PGIMER_PORTAL/PGIMERPORTAL/GlobalPages/JSP/recallht.jsp?f=1&of=1&r=1',
     // recallht.jsp?f=1&of=1&r=1 embeds <iframe id="recviewframe" src="allrec.jsp?...">
     indexUrl:
-      'https://www.pgimer.edu.in/PGIMER_PORTAL/PGIMERPORTAL/GlobalPages/JSP/allrec.jsp?aflag=0&fdate=0&flag=1&oflag=1&rec=1&srhoption=0&tdate=0&text=+&viewby=sub',
+      'https://pgimer.edu.in/PGIMER_PORTAL/PGIMERPORTAL/GlobalPages/JSP/allrec.jsp?aflag=0&fdate=0&flag=1&oflag=1&rec=1&srhoption=0&tdate=0&text=+&viewby=sub',
     baseDirUrl:
-      'https://www.pgimer.edu.in/PGIMER_PORTAL/PGIMERPORTAL/GlobalPages/JSP/',
+      'https://pgimer.edu.in/PGIMER_PORTAL/PGIMERPORTAL/GlobalPages/JSP/',
   },
 };
 
@@ -1400,9 +1401,14 @@ function saveState(state: PersistedData): void {
 // Network Fetcher for PGIMER JSPs (Direct + Jina HTML Reader Relay for NKN)
 // ============================================================================
 
-const insecureHttpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-  keepAlive: true,
+// Allow PGIMER's government TLS certificates (often self-signed or incomplete cert chain)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+const pgimerDispatcher = new UndiciAgent({
+  connect: {
+    rejectUnauthorized: false,
+  },
+  keepAliveTimeout: 10000,
 });
 
 async function fetchUrlWithTimeout(
@@ -1413,6 +1419,7 @@ async function fetchUrlWithTimeout(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    const isPgimer = url.includes('pgimer.edu.in');
     const response = await fetch(url, {
       signal: controller.signal,
       headers: {
@@ -1423,8 +1430,9 @@ async function fetchUrlWithTimeout(
         'Accept-Language': 'en-IN,en-GB;q=0.9,en-US;q=0.8,en;q=0.7',
         ...extraHeaders,
       },
-      // @ts-expect-error Node fetch agent compatibility
-      agent: url.startsWith('https://pgimer.edu.in') ? insecureHttpsAgent : undefined,
+      // Pass undici dispatcher for Node native fetch TLS handling
+      // @ts-expect-error Node 18+ undici dispatcher option on global fetch
+      dispatcher: isPgimer ? pgimerDispatcher : undefined,
     });
     const text = await response.text();
     return { status: response.status, text };
@@ -1445,9 +1453,9 @@ async function fetchPgimerJspHtml(
 }> {
   const start = Date.now();
 
-  // Attempt 1: Fast direct connection to pgimer.edu.in (works when hosted in India)
+  // Attempt 1: Fast direct connection to pgimer.edu.in (works when network reachable)
   try {
-    const direct = await fetchUrlWithTimeout(targetUrl, 2200);
+    const direct = await fetchUrlWithTimeout(targetUrl, 6000);
     if (
       direct.status >= 200 &&
       direct.status < 400 &&
@@ -1465,11 +1473,12 @@ async function fetchPgimerJspHtml(
     // Direct connection timed out from non-Indian cloud region to NKN (14.139.56.210)
   }
 
-  // Attempt 2: Live HTML Relay via r.jina.ai with X-Return-Format: html
+  // Attempt 2: Live HTML Relay via r.jina.ai with body target selector
   try {
     const jinaUrl = `https://r.jina.ai/${targetUrl}`;
-    const relayed = await fetchUrlWithTimeout(jinaUrl, 12000, {
+    const relayed = await fetchUrlWithTimeout(jinaUrl, 15000, {
       'X-Return-Format': 'html',
+      'X-Target-Selector': 'body',
     });
     if (
       relayed.status >= 200 &&

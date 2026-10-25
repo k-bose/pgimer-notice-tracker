@@ -833,6 +833,44 @@
   },
   "logs": [
     {
+      "id": "run-1792912331666",
+      "startedAt": "2026-10-25T07:12:11.630Z",
+      "completedAt": "2026-10-25T07:12:11.666Z",
+      "istTimeFormatted": "25.10.2026 12:42:11 IST",
+      "trigger": "scheduled",
+      "withinIstWindow": true,
+      "sourceResults": [
+        {
+          "sourceId": "vacancies",
+          "sourceName": "Vacancies Portal",
+          "targetUrl": "https://pgimer.edu.in/PGIMER_PORTAL/PGIMERPORTAL/Vacancies/JSP/VACANCIE_VIEW.jsp?countt=0",
+          "httpStatus": 200,
+          "durationMs": 10,
+          "rowsParsed": 3,
+          "newRecordsHydrated": 0,
+          "transportMode": "cached_snapshot",
+          "note": "Used verified PGIMER JSP snapshot (scanned 3 total rows in VIEW_CALL.jsp)"
+        },
+        {
+          "sourceId": "recall_global",
+          "sourceName": "Global Notices (See All Records)",
+          "targetUrl": "https://pgimer.edu.in/PGIMER_PORTAL/PGIMERPORTAL/GlobalPages/JSP/recallht.jsp?f=1&of=1&r=1",
+          "httpStatus": 200,
+          "durationMs": 1,
+          "rowsParsed": 3,
+          "newRecordsHydrated": 0,
+          "transportMode": "cached_snapshot",
+          "note": "Used verified PGIMER JSP snapshot (scanned 3 rows in allrec.jsp)"
+        }
+      ],
+      "totalNoticesParsed": 6,
+      "newNoticesCount": 0,
+      "newNoticeIds": [],
+      "emailSent": false,
+      "resendEmailId": null,
+      "emailError": null
+    },
+    {
       "id": "run-1792912084918",
       "startedAt": "2026-10-25T07:08:04.885Z",
       "completedAt": "2026-10-25T07:08:04.918Z",
@@ -1846,6 +1884,6 @@
       "emailError": null
     }
   ],
-  "lastPollAt": "2026-10-25T07:08:04.918Z",
+  "lastPollAt": "2026-10-25T07:12:11.666Z",
   "simulatedCounter": 1
 }
